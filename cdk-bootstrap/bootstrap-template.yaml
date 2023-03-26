@@ -175,6 +175,48 @@ Resources:
         Status: Enabled
     UpdateReplacePolicy: Retain
     DeletionPolicy: Retain
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::If:
+          - HasCustomFileAssetsBucketName
+          - Fn::Sub: ${FileAssetsBucketName}
+          - Fn::Sub: artifact-${Qualifier}-${AWS::AccountId}-${AWS::Region}
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID:
+                Fn::If:
+                  - CreateNewKey
+                  - Fn::Sub: ${FileAssetsBucketEncryptionKey.Arn}
+                  - Fn::If:
+                      - UseAwsManagedKey
+                      - Ref: AWS::NoValue
+                      - Fn::Sub: ${FileAssetsBucketKmsKeyId}
+      PublicAccessBlockConfiguration:
+        Fn::If:
+          - UsePublicAccessBlockConfiguration
+          - BlockPublicAcls: true
+            BlockPublicPolicy: true
+            IgnorePublicAcls: true
+            RestrictPublicBuckets: true
+          - Ref: AWS::NoValue
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+  ArtifactBucketSSMParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /ArtifactBucket
+      Description: Artifact Bucket
+      Tier: Standard
+      Type: String
+      Value: 
+        Ref: ArtifactBucket
   StagingBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -504,4 +546,3 @@ Outputs:
       Fn::GetAtt:
         - CdkBootstrapVersion
         - Value
-
